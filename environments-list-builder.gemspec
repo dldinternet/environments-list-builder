@@ -17,7 +17,7 @@ Gem::Specification.new do |gem|
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
   gem.require_paths = ['lib']
 
-  gem.add_dependency 'manifest-builder', '>= 0.6.8', '< 1.1'
+  gem.add_dependency 'manifest-builder', '>= 0.6.9', '< 1.1'
   gem.add_dependency 'json', '>= 1.8.1', '< 1.9'
   gem.add_dependency 's3etag', '>= 0.0.1', '< 0.1.0'
   gem.add_dependency 'archive-tar-minitar', '= 0.5.2'
@@ -26,7 +26,7 @@ Gem::Specification.new do |gem|
   gem.add_dependency 'colorize'
   gem.add_dependency 'inifile'
   gem.add_dependency 'thor'
-  gem.add_dependency 'aws-sdk-core', '~> 2.0'
+  gem.add_dependency 'aws-sdk', '>= 2.0', '< 2.1'
   gem.add_dependency 'dldinternet-mixlib-logging'
 
   gem.add_development_dependency 'bundler', '>= 1.7', '< 2.0'
