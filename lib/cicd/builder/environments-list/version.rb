@@ -2,7 +2,7 @@ module CiCd
   module Builder
     module EnvironmentsList
       # environments-list-builder version
-      VERSION = '0.1.9'
+      VERSION = '0.2.0'
       MAJOR, MINOR, TINY = VERSION.split('.')
       PATCH = TINY
     end
