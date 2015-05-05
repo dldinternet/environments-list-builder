@@ -1,0 +1,34 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+
+path = File.dirname(__FILE__)
+if File.exists?("#{path}/../.gitignore")
+  %w(chefrepo-builder cicd-builder).each do |mod|
+    add_path = File.expand_path(File.join(path, "../../#{mod}", "lib"))
+    $:.unshift(add_path)
+  end
+else
+  # Borrowing from "whiches" gem ...
+  cmd  = File.basename(__FILE__, '.rb')
+  exes = []
+  exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
+  ENV['PATH'].split(File::PATH_SEPARATOR).each do |pth|
+    exts.each { |ext|
+      exe = File.join(pth, "#{cmd}#{ext}")
+      exes << exe if File.executable? exe
+    }
+  end
+  if exes.size > 0
+    path = File.dirname(exes[0])
+  end
+
+end
+add_path = File.expand_path(File.join(path, "..", "lib"))
+$:.unshift(add_path)
+
+require 'dldinternet/mixlib/logging'
+require 'cicd/builder/environments-list'
+
+# =====================================================================================================================
+exit CiCd::Builder::EnvironmentsList::Runner.new().run()
