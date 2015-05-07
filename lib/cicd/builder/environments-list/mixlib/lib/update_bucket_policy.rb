@@ -46,7 +46,7 @@ class UpdateBucketPolicy < Thor
   class_option :profiles,     :type => :array
   class_option :color,        :type => :boolean, :default => false
   class_option :yes,          :type => :boolean
-  attr_reader   :accounts, :environments
+  attr_reader   :accounts, :environments, :stacks, :clients
   attr_accessor :logger
 
   no_commands do
@@ -54,7 +54,7 @@ class UpdateBucketPolicy < Thor
     require 'mixins/no_commands'
     include Amplify::AWS::MixIns::NoCommands
 
-    def get_environments
+    def get_environments(strict=false)
       logger.step 'Get environments ...'
 
       @environments = {}
@@ -62,14 +62,14 @@ class UpdateBucketPolicy < Thor
       @accounts.each do |acc|
         @options.merge!(acc.get_options())
         parse_options
-        get_environments_for_account
+        get_environments_for_account(strict)
       end
       logger.info "Environments:\n"+@environments.ai
       logger.info "NATs:\n"+@nats.ai
 
     end
 
-    def get_environments_for_account
+    def get_environments_for_account(strict=false)
       logger.step "Get environments for #{@options[:account]} ..."
 
       config = @options
@@ -101,25 +101,34 @@ class UpdateBucketPolicy < Thor
             break
           end
         end
-        unless env
+        unless env or strict
           env = stack[:stack_name]
         end
-        @environments[env] ||= []
-        @environments[env] << stack[:stack_name]
+        if env
+          @environments[env] ||= []
+          @environments[env] << stack[:stack_name]
+          @stacks ||= {}
+          @stacks[env] ||= []
+          @stacks[env] << stack
+          @clients ||= {}
+          @clients[env] ||= cfn
 
-        resources = []
-        resp = cfn.describe_stack_resources(stack_name: stack[:stack_id], logical_resource_id: 'NATIPAddress')
-        resources << resp[:stack_resources]
-        resp = cfn.describe_stack_resources(stack_name: stack[:stack_id], logical_resource_id: 'BastionIPAddress')
-        resources << resp[:stack_resources]
-        resources.flatten!
-        logger.debug resources.ai
+          # @resources ||= {}
+          # @resources[env] ||= []
+          resources = []
+          resp = cfn.describe_stack_resources(stack_name: stack[:stack_id], logical_resource_id: 'NATIPAddress')
+          resources << resp[:stack_resources]
+          resp = cfn.describe_stack_resources(stack_name: stack[:stack_id], logical_resource_id: 'BastionIPAddress')
+          resources << resp[:stack_resources]
+          resources.flatten!
+          logger.debug resources.ai
 
-        _nats = resources.map{ |r|
-          r.to_h[:physical_resource_id]
-        }
+          _nats = resources.map{ |r|
+            r.to_h[:physical_resource_id]
+          }
 
-        @nats[env] = @nats[env] ? [ @nats[env], _nats ].flatten : _nats
+          @nats[env] = @nats[env] ? [ @nats[env], _nats ].flatten : _nats
+        end
       end
 
     end

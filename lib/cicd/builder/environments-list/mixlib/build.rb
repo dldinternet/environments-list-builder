@@ -103,7 +103,7 @@ module CiCd
               if helper.accounts.size > 0
                 helper_environments = loadCachedEnvironments()
                 unless helper_environments.size > 0
-                  helper.get_environments()
+                  helper.get_environments(true)
                   helper_environments = helper.environments
                   saveCachedEnvironments(helper_environments)
                 end
