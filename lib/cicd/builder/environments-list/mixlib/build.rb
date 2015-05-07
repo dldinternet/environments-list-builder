@@ -27,6 +27,25 @@ module CiCd
         end
 
         # ---------------------------------------------------------------------------------------------------------------
+        def loadEnvironments(filename,version,changed=false)
+          require 'hashie'
+          @vars[:environments] = {
+              file: filename,
+              version: version,
+              changed: (changed or not File.exists?(filename)),
+          }
+          data = IO.read(filename) rescue '{}'
+          json = begin
+            JSON.parse(data)
+          rescue
+            eval(data)
+          end
+          IO.write(filename, JSON.pretty_generate(json, {indent: "\t", space: ' '})) # Just to be tidy :)
+          @vars[:environments][:data] = Hashie::Mash.new(json)
+          @logger.info "#{ENV['ARTIFACTORY_ENVIRONMENTS_MODULE']}-#{version}"
+        end
+
+        # ---------------------------------------------------------------------------------------------------------------
         def getLatestEnvironments(oldver=nil)
           version = @repo.latestArtifactoryVersion(ENV['ARTIFACTORY_ENVIRONMENTS_MODULE'], ENV['ARTIFACTORY_RELEASE_REPO'])
           if version
@@ -37,23 +56,7 @@ module CiCd
                   @logger.error "Too many versions found for #{ENV['ARTIFACTORY_RELEASE_REPO']}/#{ENV['ARTIFACTORY_ENVIRONMENTS_MODULE']}-#{version} during preparation?"
                   @vars[:return_code] = Errors::ARTIFACT_MULTI_MATCH
                 else
-                  require 'hashie'
-                  filename = objects[0].download()
-                  @vars[:environments] = {
-                      file: filename,
-                      # artifact: objects[0],
-                      version: version,
-                      changed: false,
-                  }
-                  data = IO.read(filename)
-                  json = begin
-                    JSON.parse(data)
-                  rescue
-                    eval(data)
-                  end
-                  IO.write(filename, JSON.pretty_generate(json, {indent: "\t", space: ' '})) # Just to be tidy :)
-                  @vars[:environments][:data] = Hashie::Mash.new(json)
-                  @logger.info "#{ENV['ARTIFACTORY_ENVIRONMENTS_MODULE']}-#{version}"
+                  loadEnvironments(objects[0].download(), version)
                 end
               else
                 @logger.error "Version not found for #{ENV['ARTIFACTORY_RELEASE_REPO']}/#{ENV['ARTIFACTORY_ENVIRONMENTS_MODULE']}-#{version} during preparation?"
@@ -63,8 +66,9 @@ module CiCd
               @logger.info "Alread have the latest version (#{oldver})"
             end
           else
-            @logger.error "No version found for #{ENV['ARTIFACTORY_RELEASE_REPO']}/#{ENV['ARTIFACTORY_ENVIRONMENTS_MODULE']} during preparation?"
-            @vars[:return_code] = Errors::ARTIFACT_NOT_FOUND
+            @logger.warn "No version found for #{ENV['ARTIFACTORY_RELEASE_REPO']}/#{ENV['ARTIFACTORY_ENVIRONMENTS_MODULE']} during preparation?"
+            # @vars[:return_code] = Errors::ARTIFACT_NOT_FOUND
+            loadEnvironments('/tmp/environments.json', '1', true)
           end
           @vars[:return_code]
         end
@@ -97,13 +101,19 @@ module CiCd
               helper.options[:profiles] = ENV['AWS_PROFILES'] if ENV['AWS_PROFILES']
               helper.prepare_accounts
               if helper.accounts.size > 0
-                helper.get_environments()
-                if helper.environments.size > 0
+                helper_environments = loadCachedEnvironments()
+                unless helper_environments.size > 0
+                  helper.get_environments()
+                  helper_environments = helper.environments
+                  saveCachedEnvironments(helper_environments)
+                end
+
+                if helper_environments.size > 0
                   getLatestEnvironments(@vars[:environments][:version])
                   if 0 == @vars[:return_code]
                     environments = Hashie::Mash.new(@vars[:environments][:data])
                     exclude_regex = ENV['ENVS_EXCLUDE_REGEX'] || '-repo'
-                    helper.environments.select{|e,_| e !~ /#{exclude_regex}/ }.each do |envnam,_|
+                    helper_environments.select{|e,_| e !~ /#{exclude_regex}/ }.each do |envnam,_|
                       environments[envnam] ||= {}
                     end
                     if environments.size != @vars[:environments][:data].size
@@ -128,6 +138,32 @@ module CiCd
         end
 
         protected
+
+        CACHE_FILE = '/tmp/aws_cloudformation_environments_stacks.json'
+        # ---------------------------------------------------------------------------------------------------------------
+        def loadCachedEnvironments
+          hash = {}
+          # if File.exists?(CACHE_FILE)
+          # end
+          begin
+            stat = File.stat(CACHE_FILE)
+            age  = (Time.now - stat.mtime)
+            @logger.info "Environment stacks cache #{CACHE_FILE} age is #{age}s"
+            if age < 3600
+              hash = JSON.parse(IO.read(CACHE_FILE))
+            else
+              hash = {}
+            end
+          rescue
+            hash = {}
+          end
+          hash
+        end
+
+        # ---------------------------------------------------------------------------------------------------------------
+        def saveCachedEnvironments(environments)
+          IO.write(CACHE_FILE,JSON.pretty_generate(environments,{ indent: "\t", space: ' '}))
+        end
 
         def prepare_accounts
           @accounts = []

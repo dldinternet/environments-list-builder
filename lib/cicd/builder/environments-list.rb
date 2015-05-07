@@ -32,14 +32,33 @@ module CiCd
         end
 
         # ---------------------------------------------------------------------------------------------------------------
+        def checkEnvironment()
+          @logger.step CLASS+'::'+__method__.to_s
+          # We fake some of the keys that the will need later ...
+          fakes = @default_options[:env_keys].select{|key| key =~ /^(CLASSES|REPO_PRODUCTS|MANIFEST_FILE)/}
+          faked = {}
+          fakes.each do |key|
+            unless ENV.has_key?(key)
+              ENV[key]='faked'
+              faked[key] = true
+            end
+          end
+          ret = super
+          faked.each do |k,_|
+            ENV.delete k
+            @default_options[:env_unused].delete k if @default_options[:env_unused]
+          end
+          @default_options[:env_unused] = @default_options[:env_unused].select{|k| k !~ /^(ARTIFACTORY|AWS_INI)/} if @default_options[:env_unused]
+          ret
+        end
+
+        # ---------------------------------------------------------------------------------------------------------------
         def setup()
           $stdout.write("EnvironmentsListBuilder v#{CiCd::Builder::EnvironmentsList::VERSION}\n")
           @default_options[:env_keys] << %w(
-                                            REPO_PRODUCTS
                                             ARTIFACTORY_RELEASE_REPO
                                             ARTIFACTORY_ENVIRONMENTS_MODULE
                                            )
-          @default_options[:env_keys] = @default_options[:env_keys].select{|key| key !~ /^CLASSES/}
           super
         end
 
