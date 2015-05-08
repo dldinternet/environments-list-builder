@@ -225,7 +225,7 @@ module Amplify
             ini = load_inifile(inifile)
             ini[section].each{ |key,value|
               #@options[key.to_s]=value
-              @logger.debug "#{key} '#{value}'"
+              # @logger.debug "#{key} '#{value.gsub(/./,'*')}'"
               ENV[key.to_s]=value.to_s
             }
             expand_options()
