@@ -41,7 +41,7 @@ PATH
 PATH
   remote: ../manifest-builder
   specs:
-    manifest-builder (0.7.1)
+    manifest-builder (0.7.2)
       archive-tar-minitar (= 0.5.2)
       chefrepo-builder (>= 0.9.41, < 1.1)
       json (>= 1.8.1, < 1.9)
