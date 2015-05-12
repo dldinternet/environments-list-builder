@@ -17,7 +17,7 @@ Gem::Specification.new do |gem|
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
   gem.require_paths = ['lib']
 
-  gem.add_dependency 'manifest-builder', '>= 0.7.1', '< 1.1'
+  gem.add_dependency 'manifest-builder', '>= 0.7.3', '< 1.1'
   gem.add_dependency 'json', '>= 1.8.1', '< 1.9'
   gem.add_dependency 's3etag', '>= 0.0.1', '< 0.1.0'
   gem.add_dependency 'archive-tar-minitar', '= 0.5.2'
